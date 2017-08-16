@@ -348,6 +348,13 @@ static struct option_parser log_parsers[] = {
 	{ NULL, NULL },
 };
 
+int wq_net_split;
+static int wq_net_split_parser(const char *s)
+{
+	wq_net_split = atoi(s);
+	return 0;
+}
+
 static int wq_net_threads;
 static int wq_net_parser(const char *s)
 {
@@ -429,6 +436,7 @@ static struct option_parser wq_parsers[] = {
 	{ "remove_peer=", wq_remove_peer_parser },
 	{ "recovery=", wq_recovery_parser },
 	{ "async=", wq_async_parser },
+	{ "split=", wq_net_split_parser },
 };
 
 static const char *io_addr, *io_pt;
@@ -539,8 +547,23 @@ static int create_work_queues(void)
 		return -1;
 
 	if (wq_net_threads) {
-		sd_info("# of threads in net workqueue: %d", wq_net_threads);
-		sys->net_wqueue = create_fixed_work_queue("net", wq_net_threads);
+		sys->net_wqueue = malloc(sizeof(struct work_queue *) * wq_net_split); 
+		char tmp[5];
+		struct work_queue **ptr = &sys->net_wqueue;
+		for (int i = 0; i < wq_net_split; ++i ) {
+			sprintf(tmp, "net%d", i);
+			sd_info("# of threads in %s workqueue: %d", tmp, wq_net_threads);
+			sd_info("ptr: %p", ptr);
+			*ptr = create_fixed_work_queue(tmp, wq_net_threads);
+			ptr++;
+
+			/*sd_info("# of threads in net1 workqueue: %d", wq_net_threads);
+			sys->net1_wqueue = create_fixed_work_queue("net1", wq_net_threads);
+			sd_info("# of threads in net2 workqueue: %d", wq_net_threads);
+			sys->net2_wqueue = create_fixed_work_queue("net2", wq_net_threads);
+			sd_info("# of threads in net3 workqueue: %d", wq_net_threads);
+			sys->net3_wqueue = create_fixed_work_queue("net3", wq_net_threads);*/
+		}
 	} else {
 		sd_info("net workqueue is created as dynamic");
 		sys->net_wqueue = create_work_queue("net", WQ_DYNAMIC);
@@ -845,7 +868,7 @@ int main(int argc, char **argv)
 	sys->rthrottling.queue_work_interval = 0;
 	sys->rthrottling.throttling = false;
 
-	install_crash_handler(crash_handler);
+	//install_crash_handler(crash_handler);
 	signal(SIGPIPE, SIG_IGN);
 
 	install_sighandler(SIGHUP, sighup_handler, false);
@@ -1204,6 +1227,7 @@ int main(int argc, char **argv)
 	 * e.g, signal handling, above this call and those need multi-threaded
 	 * environment, for e.g, work queues below.
 	 */
+sd_info("split: %d", wq_net_split);
 	ret = create_work_queues();
 	if (ret)
 		goto cleanup_journal;

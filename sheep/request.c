@@ -970,6 +970,7 @@ static struct client_info *create_client(int fd)
 
 static void client_handler(int fd, int events, void *data)
 {
+	static int split = 0;
 	struct client_info *ci = (struct client_info *)data;
 
 	sd_debug("%x, %d", events, ci->conn.dead);
@@ -999,7 +1000,26 @@ static void client_handler(int fd, int events, void *data)
 		ci->rx_work.fn = rx_work;
 		ci->rx_work.done = rx_main;
 		tracepoint(request, queue_request, fd, &ci->rx_work, 1);
-		queue_work(sys->net_wqueue, &ci->rx_work);
+		int i = split%wq_net_split;
+		struct work_queue **ptr = &sys->net_wqueue;
+		ptr = ptr + i;
+		queue_work(*ptr, &ci->rx_work);
+		/*switch(split%wq_net_split) {
+		
+		case 0:
+			queue_work(sys->net0_wqueue, &ci->rx_work);
+			break;
+		case 1:
+			queue_work(sys->net1_wqueue, &ci->rx_work);
+			break;
+		case 2:
+			queue_work(sys->net2_wqueue, &ci->rx_work);
+			break;
+		case 3:
+			queue_work(sys->net3_wqueue, &ci->rx_work);
+			break;
+		}*/
+		split = (split+1)%wq_net_split;
 	}
 
 	if (events & EPOLLOUT) {
@@ -1022,7 +1042,26 @@ static void client_handler(int fd, int events, void *data)
 		ci->tx_work.fn = tx_work;
 		ci->tx_work.done = tx_main;
 		tracepoint(request, queue_request, fd, &ci->tx_work, 0);
-		queue_work(sys->net_wqueue, &ci->tx_work);
+		//queue_work(sys->net_wqueue, &ci->tx_work);
+		int i = split%wq_net_split;
+		struct work_queue **ptr = &sys->net_wqueue;
+		ptr = ptr + i;
+		queue_work(*ptr, &ci->tx_work);
+		/*switch(split%4) {
+		case 0:
+			queue_work(sys->net0_wqueue, &ci->tx_work);
+			break;
+		case 1:
+			queue_work(sys->net1_wqueue, &ci->tx_work);
+			break;
+		case 2:
+			queue_work(sys->net2_wqueue, &ci->tx_work);
+			break;
+		case 3:
+			queue_work(sys->net3_wqueue, &ci->tx_work);
+			break;
+		}*/
+		split = (split+1)%wq_net_split;
 	}
 }
 

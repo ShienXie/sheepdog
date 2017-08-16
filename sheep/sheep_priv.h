@@ -163,6 +163,10 @@ struct system_info {
 	struct recovery_throttling rthrottling;
 
 	struct work_queue *net_wqueue;
+	/*struct work_queue *net0_wqueue;
+	struct work_queue *net1_wqueue;
+	struct work_queue *net2_wqueue;
+	struct work_queue *net3_wqueue;*/
 	struct work_queue *gateway_wqueue;
 	struct work_queue *io_wqueue;
 	struct work_queue *peer_wqueue;
@@ -328,6 +332,7 @@ extern struct system_info *sys;
 extern struct store_driver *sd_store;
 extern char *obj_path;
 extern char *epoch_path;
+extern int wq_net_split; 
 
 /* One should call this function to get sys->epoch outside main thread */
 static inline uint32_t sys_epoch(void)
