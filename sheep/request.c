@@ -1001,7 +1001,11 @@ static void client_handler(int fd, int events, void *data)
 		ci->rx_work.fn = rx_work;
 		ci->rx_work.done = rx_main;
 		tracepoint(request, queue_request, fd, &ci->rx_work, 1);
-		switch(splitRX%4) {
+		int i = splitRX%wq_net_split;
+		struct work_queue **ptr = &sys->net_wqueue;
+		ptr = ptr + i;
+		queue_work(*ptr, &ci->rx_work);
+		/*switch(split%wq_net_split) {
 		
 		case 0:
 			queue_work(sys->net0_wqueue, &ci->rx_work);
@@ -1015,8 +1019,8 @@ static void client_handler(int fd, int events, void *data)
 		case 3:
 			queue_work(sys->net3_wqueue, &ci->rx_work);
 			break;
-		}
-		splitRX = (splitRX+1)%4;
+		}*/
+		splitRX = (splitRX+1)%wq_net_split;
 	}
 
 	if (events & EPOLLOUT) {
@@ -1039,7 +1043,12 @@ static void client_handler(int fd, int events, void *data)
 		ci->tx_work.fn = tx_work;
 		ci->tx_work.done = tx_main;
 		tracepoint(request, queue_request, fd, &ci->tx_work, 0);
-		switch(splitTX%4) {
+		//queue_work(sys->net_wqueue, &ci->tx_work);
+		int i = splitTX%wq_net_split;
+		struct work_queue **ptr = &sys->net_wqueue;
+		ptr = ptr + i;
+		queue_work(*ptr, &ci->tx_work);
+		/*switch(split%4) {
 		case 0:
 			queue_work(sys->net0_wqueue, &ci->tx_work);
 			break;
@@ -1052,8 +1061,8 @@ static void client_handler(int fd, int events, void *data)
 		case 3:
 			queue_work(sys->net3_wqueue, &ci->tx_work);
 			break;
-		}
-		splitTX= (splitTX+1)%4;
+		}*/
+		splitTX= (splitTX+1)%wq_net_split;
 	}
 }
 

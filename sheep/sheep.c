@@ -547,14 +547,23 @@ static int create_work_queues(void)
 		return -1;
 
 	if (wq_net_threads) {
-			sd_info("# of threads in net0 workqueue: %d", wq_net_threads);
-			sys->net0_wqueue = create_fixed_work_queue("net0", wq_net_threads);
-			sd_info("# of threads in net1 workqueue: %d", wq_net_threads);
+		sys->net_wqueue = malloc(sizeof(struct work_queue *) * wq_net_split); 
+		char tmp[5];
+		struct work_queue **ptr = &sys->net_wqueue;
+		for (int i = 0; i < wq_net_split; ++i ) {
+			sprintf(tmp, "net%d", i);
+			sd_info("# of threads in %s workqueue: %d", tmp, wq_net_threads);
+			sd_info("ptr: %p", ptr);
+			*ptr = create_fixed_work_queue(tmp, wq_net_threads);
+			ptr++;
+
+			/*sd_info("# of threads in net1 workqueue: %d", wq_net_threads);
 			sys->net1_wqueue = create_fixed_work_queue("net1", wq_net_threads);
 			sd_info("# of threads in net2 workqueue: %d", wq_net_threads);
 			sys->net2_wqueue = create_fixed_work_queue("net2", wq_net_threads);
 			sd_info("# of threads in net3 workqueue: %d", wq_net_threads);
-			sys->net3_wqueue = create_fixed_work_queue("net3", wq_net_threads);
+			sys->net3_wqueue = create_fixed_work_queue("net3", wq_net_threads);*/
+		}
 	} else {
 		sd_info("net workqueue is created as dynamic");
 		sys->net_wqueue = create_work_queue("net", WQ_DYNAMIC);
